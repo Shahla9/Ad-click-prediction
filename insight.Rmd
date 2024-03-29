@@ -1,0 +1,813 @@
+---
+jupyter:
+  jupytext:
+    text_representation:
+      extension: .Rmd
+      format_name: rmarkdown
+      format_version: '1.2'
+      jupytext_version: 1.16.1
+  kernelspec:
+    display_name: Python 3 (ipykernel)
+    language: python
+    name: python3
+---
+
+```{python active="", eval=FALSE}
+https://www.kaggle.com/datasets/pavansanagapati/ad-displayclick-data-on-taobaocom
+```
+
+# init
+
+
+## imports
+
+```{python}
+import matplotlib.pyplot as plt
+import pandas as pd
+import warnings
+
+from pyspark.sql import functions as F
+from pyspark.sql import SparkSession
+from pyspark.sql import types as T
+from pyspark.sql import Window as W
+
+warnings.filterwarnings('ignore')
+```
+
+## configs
+
+```{python}
+SPARK_THREADS = 16
+SPARK_MEMORY = 16
+SPARK_TIMEZONE = 'America/Vancouver'
+```
+
+```{python}
+BASE_PATH = ('/home/shaghayegh/class/ad_click/data/raw_data/')
+USER_DATA_PATH = BASE_PATH + 'user_profile.csv'
+AD_CLICK_DATA_PATH = BASE_PATH + 'raw_sample.csv'
+AD_INFO_DATA_PATH = BASE_PATH + 'ad_feature.csv'
+```
+
+## spark instantiation
+
+```{python}
+spark = (
+    SparkSession 
+    .builder 
+    .master('local[{}]'.format(SPARK_THREADS)) 
+    .config('spark.driver.memory', '{}g'.format(SPARK_MEMORY)) 
+    .config('spark.sql.session.timeZone', SPARK_TIMEZONE) 
+    .getOrCreate()
+)
+```
+
+## util
+
+```{python}
+def summerize_df(df):
+    print(df.count())
+    df.show(3)
+```
+
+# load data
+
+```{python}
+user_df = spark.read.csv(USER_DATA_PATH, header = True, inferSchema=True)
+summerize_df(user_df)
+```
+
+```{python}
+ad_info_df = spark.read.csv(AD_INFO_DATA_PATH, header = True, inferSchema=True)
+summerize_df(ad_info_df)
+```
+
+```{python}
+ad_click_df = spark.read.csv(AD_CLICK_DATA_PATH, header = True, inferSchema=True)
+summerize_df(ad_click_df)
+```
+
+# join
+
+```{python}
+ad_click_df = ad_click_df.withColumnRenamed('user', 'userid')
+
+ad_click_user_df = ad_click_df.join(user_df, on='userid')
+merged_df = ad_click_user_df.join(ad_info_df, on='adgroup_id')
+
+merged_df.persist()
+summerize_df(merged_df)
+```
+
+# questions
+
+
+## ad click distribution
+
+```{python}
+(
+    ad_click_df
+    .groupby('clk')
+    .count()
+    .show()
+)
+```
+
+## time interval
+
+```{python}
+(
+    ad_click_df
+    .withColumn('time', F.from_unixtime(F.col('time_stamp')))
+    .groupby()
+    .agg(
+        F.min('time'),
+        F.max('time')) 
+    .show()
+)
+```
+
+## ad group count
+
+```{python}
+(
+    ad_info_df
+    .groupby()
+    .agg(
+        F.count_distinct('adgroup_id'))
+    .show()
+)
+```
+
+## campaign id count
+
+```{python}
+(
+    ad_info_df
+    .groupby()
+    .agg(
+        F.count_distinct('campaign_id'))
+    .show()
+)
+```
+
+## ad category id count
+
+```{python}
+(
+    ad_info_df
+    .groupby()
+    .agg(
+        F.count_distinct('cate_id'))
+    .show()
+)
+```
+
+## ad brand count
+
+```{python}
+(
+    ad_info_df
+    .groupby()
+    .agg(
+        F.count_distinct('brand'))
+    .show()
+)
+```
+
+## ad max price
+
+```{python}
+(
+    ad_info_df
+    .groupby()
+    .agg(
+        F.max('price'))
+    .toPandas()
+)
+```
+
+## ad user clicks
+
+```{python}
+(
+    ad_click_df
+    .groupby('userid')
+    .agg(
+        F.sum('clk').alias('user_clicks'))
+    .sort(F.desc('user_clicks'))
+    .show()
+)
+```
+
+```{python}
+(
+    ad_click_df
+    .groupby('userid')
+    .agg(
+        F.sum('clk').alias('user_clicks'))
+    .groupby()
+    .agg(
+        F.max('user_clicks'))
+    .show()
+)
+```
+
+## ad user avg clicks
+
+```{python}
+(
+    ad_click_df
+    .groupby('userid')
+    .agg(
+        F.sum('clk').alias('user_avg_clicks'))
+    .groupby()
+    .agg(
+        F.avg('user_avg_clicks'))
+    .show()
+)
+```
+
+## user age level
+
+```{python}
+(
+    user_df
+    .select('age_level')
+    .distinct()
+    .show()
+)
+```
+
+## ad clks per day
+
+```{python}
+(
+    ad_click_df
+    .withColumn('time', F.from_unixtime(F.col('time_stamp')))
+    .withColumn('date', F.to_date(F.col('time')))
+    .groupby('date')
+    .agg(F.sum('clk').alias('user_clicks'))
+    .orderBy('date')
+    .show()
+)
+```
+
+## time gap between ads per userid
+
+```{python}
+merged_df =(
+    merged_df
+    .withColumn('time', F.to_timestamp(F.col('time_stamp')))
+)
+
+def window_functions(df):
+    window = W.partitionBy('userid').orderBy('time')
+    
+    window_df = (
+        df
+        .withColumn('last_row', F.lag('time').over(window))
+    )
+    
+    return window_df
+    
+window_df = window_functions(merged_df)
+
+window_df = (
+    window_df
+    .withColumn(
+        'ad_gap_sec',
+        (F.round
+        (F.col('time').cast("long") - 
+        F.col('last_row').cast("long")))
+        .cast('int')
+    )
+)
+window_df.drop('last_row').show(truncate=False)
+```
+
+# potential features
+
+
+## most clked brand
+
+```{python}
+(
+    merged_df
+    .groupby('brand')
+    .agg(F.sum('clk').alias('user_clicks'))
+    .sort(F.desc('user_clicks'))
+    .show()
+)
+```
+
+## age group ad clks
+
+```{python}
+(
+    merged_df
+    .groupby('age_level')
+    .agg(F.sum('clk').alias('user_clicks'))
+    .sort(F.desc('user_clicks'))
+    .show()
+)
+```
+
+## age group total of ad shown 
+
+```{python}
+(
+    merged_df
+    .groupby('age_level')
+    .agg(F.count('clk').alias('user_clicks'))
+    .sort(F.desc('user_clicks'))
+    .show()
+)
+```
+
+## age group ad clks avg percentage  
+
+```{python}
+(
+    merged_df
+    .groupby('age_level')
+    .agg((F.round(F.mean('clk')*100, 2)).alias('mean_user_clicks'))
+    .sort(F.desc('mean_user_clicks'))
+    .show()
+)
+```
+
+## age_level 1 avg price 
+
+```{python}
+(
+    merged_df
+    .filter(F.col('age_level') == 1)
+    .agg((F.mean('price')))
+    .show()
+)
+```
+
+## age_level avg price
+
+```{python}
+price_age_df = (
+    merged_df
+    .groupby('age_level')
+    .agg((F.mean('price')))
+    .orderBy('avg(price)')
+    .show()
+)
+```
+
+```{python}
+price_age_df = (
+    merged_df
+    .filter(F.col('clk') == 1)
+    .groupby('age_level')
+    .agg((F.mean('price')))
+    .orderBy('avg(price)')
+    .show()
+)
+```
+
+## avg price/ age level plot
+
+```{python}
+price_age_pandas_df = (
+    merged_df
+    .groupby('age_level')
+    .agg((F.mean('price')))
+    .toPandas()
+)
+```
+
+```{python}
+price_age_pandas_df.sort_values('age_level', inplace=True)
+
+plt.figure(figsize=(5, 3))
+plt.bar(price_age_pandas_df['age_level'], price_age_pandas_df['avg(price)'], color='skyblue')
+plt.xlabel('Age Level')
+plt.ylabel('Mean Price')
+plt.title('Mean Price by Age Level')
+plt.show()
+```
+
+## new user class level
+
+```{python}
+(
+    merged_df
+    .groupby('new_user_class_level ')
+    .count()
+    .show()
+)
+```
+
+## females ad clk mean price  
+
+```{python}
+(
+    merged_df
+    .filter(F.col('final_gender_code') == 2)
+    .filter(F.col('clk') == 1)
+    .agg((F.mean('price')))
+    .show()
+)
+```
+
+## females & male ad clk mean price  
+
+```{python}
+(
+    merged_df
+    .filter(F.col('clk') == 1)
+    .groupby('final_gender_code')
+    .agg((F.mean('price')))
+    .show()
+)
+```
+
+## ave time gap of ads
+
+```{python}
+window_filtered_df = (
+    window_df
+    .filter((F.col("ad_gap_sec") != 0) & (F.col("ad_gap_sec").isNotNull()))
+    .groupby()
+    .agg(F.avg(F.col('ad_gap_sec')))
+)
+window_filtered_df.show()
+```
+
+## clk rate per user
+
+```{python}
+accept_rate_df = (
+    merged_df
+    .groupby('userid')
+    .agg(F.avg('clk').alias('accept_rate'))
+)
+accept_rate_df = (
+    accept_rate_df
+    .withColumn('clk_rate', F.round('accept_rate', 3))
+)
+accept_rate_df = accept_rate_df.drop('accept_rate')
+
+window_df = window_df.join(other = accept_rate_df, on = 'userid', how = 'left')
+
+summerize_df(window_df)
+```
+
+## confusion matrix on clk rate
+
+```{python}
+(
+    window_df
+    .withColumn(
+        "random_clk", 
+        (F.rand() < 0.04).cast("int"))
+    .groupby('clk', 'random_clk')
+    .count()
+    .sort('clk', 'random_clk')
+).show()
+```
+
+## prediction metrics
+
+```{python}
+print('accuracy', (22795289 + 51501) / (22795289 + 949633 + 1233012 + 51501))
+```
+
+```{python}
+print('percision', (51501) / (949633 + 51501))
+```
+
+```{python}
+print('recall', (51501) / (1233012 + 51501))
+```
+
+## clk rate in a day divided in three 
+
+```{python}
+morning_start = 0
+midday_start = 8
+night_start = 16
+
+window_df = (
+    window_df
+    .withColumn("hour", F.hour("time"))
+)
+
+window_df = (
+    window_df
+    .withColumn("timestamp",
+    F.when((F.col("hour") >= morning_start) & (F.col("hour") < midday_start), "morning")
+    .when((F.col("hour") >= morning_start) & (F.col("hour") < midday_start), "morning")
+    .otherwise("night"))
+)
+
+window_df.show()
+```
+
+```{python}
+timestamp_clk_df = (
+    window_df
+    .groupby('timestamp')
+    .agg(F.round(F.avg('clk'), 4).alias('average_clk'))
+)
+summerize_df(timestamp_clk_df)
+```
+
+## hourly clk rate 
+
+```{python}
+hour_clk_df = (
+    window_df
+    .groupby('hour')
+    .agg(F.round(F.avg('clk'), 4).alias('average_clk'), F.count('clk'))
+)
+hour_clk_df.sort('average_clk').show()
+```
+
+## time clk count
+
+```{python}
+timestamp_clk_count_df = (
+    window_df
+    .groupby('timestamp')
+    .agg(F.count('clk').alias('count_clk'))
+)
+summerize_df(timestamp_clk_count_df)
+```
+
+## ad category clk rate 
+
+```{python}
+cate_clk_df = (
+    merged_df
+    .groupBy('cate_id')
+    .agg(F.round(F.avg('clk'), 4).alias('average_clk'), F.count('clk'))
+    .orderBy(F.desc('count(clk)'))
+)
+cate_clk_df.show()
+```
+
+## brand clk rate
+
+```{python}
+brand_clk_df = (
+    merged_df
+    .groupBy('brand')
+    .agg(F.round(F.avg('clk'), 4).alias('average_clk'), F.count('clk'))
+    .sort(F.desc('count(clk)'))
+)
+brand_clk_df.show()
+```
+
+## gender clk rate
+
+```{python}
+gender_clk_df = (
+    merged_df
+    .groupBy('final_gender_code')
+    .agg(F.round(F.avg('clk'), 4).alias('average_clk'))
+)
+summerize_df(gender_clk_df)
+```
+
+## occupation clk rate
+
+```{python}
+occupation_clk_df = (
+    merged_df
+    .groupBy('occupation')
+    .agg(F.round(F.avg('clk'), 4).alias('average_clk'))
+)
+summerize_df(occupation_clk_df)
+```
+
+## consumption level clk rate
+
+```{python}
+consumption_clk_df = (
+    merged_df
+    .groupBy('pvalue_level')
+    .agg(F.round(F.avg('clk'), 5).alias('average_clk'), F.count('clk'))
+    .sort(F.desc('count(clk)'))
+)
+summerize_df(consumption_clk_df)
+```
+
+## shopping level clk rate
+
+```{python}
+shopping_level_clk_df = (
+    merged_df
+    .groupBy('shopping_level')
+    .agg(F.round(F.avg('clk'), 4).alias('average_clk'), F.count('clk'))
+    .sort(F.desc('count(clk)'))
+)
+summerize_df(shopping_level_clk_df)
+```
+
+## age level 3: ad category clk rate 
+
+```{python}
+age3_cate_clk_df = (
+    merged_df
+    .filter(F.col('age_level') == 3)
+    .groupBy('cate_id')
+    .agg(F.round(F.avg('clk'), 4).alias('average_clk'), F.count('clk'))
+    .sort(F.desc('count(clk)'))
+)
+age3_cate_clk_df.show()
+```
+
+## age level 3: ad hour clk rate 
+
+```{python}
+age3_hour_clk_df = (
+    window_df
+    .filter(F.col('age_level') == 3)
+    .groupBy('hour')
+    .agg(F.round(F.avg('clk'), 4).alias('average_clk'))
+    .orderBy(F.desc('average_clk'))
+)
+age3_hour_clk_df.show()
+```
+
+## age level 3: ad shown time & clk rate 
+
+```{python}
+age3_time_clk_count_df = (
+    window_df
+    .filter(F.col('age_level') == 3)
+    .groupby('timestamp')
+    .agg(F.count('clk').alias('count_clk'))
+)
+age3_time_clk_count_df.show()
+```
+
+## age level 3: sum of ad shown time & clk rate 
+
+```{python}
+age3_time_clk_sum_df = (
+    window_df
+    .filter(F.col('age_level') == 3)
+    .groupby('timestamp')
+    .agg(F.sum('clk').alias('count_clk'))
+)
+age3_time_clk_sum_df.show()
+```
+
+## adgroup count
+
+```{python}
+window_df.groupby('adgroup_id').count().sort(F.desc('count')).show()
+```
+
+## campaign id count
+
+```{python}
+window_df.groupby('campaign_id').count().sort(F.desc('count')).show()
+```
+
+# model features
+
+
+## ad counts and sum per userid
+
+```{python}
+def get_user_features(df):
+    window = W.partitionBy('userid').orderBy('time', F.rand())
+    
+    window_df = (
+        df
+        .withColumn('user_ad_count', F.count('clk').over(window))
+        .withColumn('user_ad_clk_count', F.sum('clk').over(window))
+    )
+    
+    return window_df
+    
+users_features_df = get_user_features(window_df)
+users_features_df.select('userid', 'time', 'user_ad_count', 'user_ad_clk_count').sort('userid', 'time').show(50)
+```
+
+## ad counts and sum per adgroup id
+
+```{python}
+def ad_window_functions(df):
+    window = W.partitionBy('adgroup_id').orderBy('time')
+    
+    window_df = (
+        df
+        .withColumn('adgroup_count', F.count('clk').over(window))
+        .withColumn('adgroup_clk_count', F.sum('clk').over(window))
+    )
+    
+    return window_df
+    
+window_df = ad_window_functions(users_features_df)
+window_df.select('adgroup_id', 'time', 'adgroup_count', 'adgroup_clk_count').sort('adgroup_id', 'time').show(50)
+```
+
+## ad counts and sum per campaign id
+
+```{python}
+def ad_window_functions(df):
+    window = W.partitionBy('campaign_id').orderBy('time')
+    
+    window_df = (
+        df
+        .withColumn('campaign_count', F.count('clk').over(window))
+        .withColumn('campaign_clk_count', F.sum('clk').over(window))
+    )
+    
+    return window_df
+    
+window_df = ad_window_functions(window_df)
+window_df.show()
+```
+
+## ad counts and sum per cate id
+
+```{python}
+def ad_window_functions(df):
+    window = W.partitionBy('cate_id').orderBy('time')
+    
+    window_df = (
+        df
+        .withColumn('cate_count', F.count('clk').over(window))
+        .withColumn('cate_clk_count', F.sum('clk').over(window))
+    )
+    
+    return window_df
+    
+window_df = ad_window_functions(window_df)
+window_df.show()
+```
+
+## male & female ad clk counts and sum per cate id
+
+```{python}
+def ad_window_functions(df):
+    window = W.partitionBy('cate_id').orderBy('time')
+    
+    window_df = (
+        df
+        .withColumn("female_cate_count", F.when((F.col("final_gender_code") == 1), F.count('clk').over(window)))
+        .withColumn("female_cate_clk_count", F.when((F.col("final_gender_code") == 1), F.sum('clk').over(window)))
+        .withColumn("male_cate_count", F.when((F.col("final_gender_code") == 2), F.count('clk').over(window)))
+        .withColumn("male_cate_clk_count", F.when((F.col("final_gender_code") == 2), F.sum('clk').over(window)))
+    )
+
+    return window_df
+    
+window_df = ad_window_functions(window_df)
+window_df.show()
+```
+
+```{python}
+def ad_window_functions(df):
+    window = W.partitionBy('cate_id', 'final_gender_code').orderBy('time')
+    
+    window_df = (
+        df
+        .withColumn('cat_gender_ad_count', F.count('clk').over(window))
+        .withColumn('cat_gender_ad_clk_count', F.sum('clk').over(window))
+    )
+
+    return window_df
+    
+window_df = ad_window_functions(window_df)
+window_df.show()
+```
+
+```{python}
+def ad_window_functions(df):
+    window = W.partitionBy('cate_id', 'final_gender_code').orderBy('time')
+    
+    window_df = (
+        df
+        .withColumn('cat_gender_ad_count', F.count('clk').over(window))
+        .withColumn('cat_gender_ad_clk_count', F.sum('clk').over(window))
+    )
+
+    return window_df
+    
+window_df = ad_window_functions(window_df)
+window_df.show()
+```
+
+```{python}
+
+```
+
+```{python}
+
+```
+
+```{python}
+
+```
