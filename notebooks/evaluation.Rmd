@@ -53,23 +53,26 @@ pred_df
 ```{python}
 results_dict = {}
 auc_scores = {}
+table_data = []
 ```
 
 ### auc curve
 
 ```{python}
 true_labels = pred_df['clk']
-
 xgs = 4
+
+plt.figure(figsize=(4, 3))  # Adjust the figure size if needed
 
 for xg in range(1, xgs):
     key = f'predicted_probabilities_{xg}'
     results_dict[key] = pred_df[f'Pred_xg{xg}']
-    auc_scores[xg] = roc_auc_score(true_labels, results_dict[key])
+    auc_score = roc_auc_score(true_labels, results_dict[key])
+    auc_scores[xg] = auc_score
+    table_data.append([f'Model {xg}', auc_score])
     fpr, tpr, _ = roc_curve(true_labels, results_dict[key])
+    plt.plot(fpr, tpr, lw=2, label=f'Model {xg} (AUC = {auc_score:.2f})')
 
-plt.figure(figsize=(4, 3))
-plt.plot(fpr, tpr, color='darkorange', lw=2, label=f'AUC = {auc_score:.2f}')
 plt.plot([0, 1], [0, 1], color='navy', lw=2, linestyle='--')
 plt.xlabel('False Positive Rate')
 plt.ylabel('True Positive Rate')
@@ -81,9 +84,5 @@ plt.show()
 ## summerize
 
 ```{python}
-result_table = [
-    [method, results_dict[method]['mape'], results_dict[method]['rmse']]
-    for method in results_dict
-]
-print(tabulate(result_table, headers=["Method","MAPE", "RMSE"], tablefmt="simple_grid"))
+print(tabulate(table_data, headers=['Model', 'AUC Score'], tablefmt='grid'))
 ```

@@ -232,7 +232,3 @@ gender_age_ad_features_df.show()
 ```{python}
 gender_age_ad_features_df.write.parquet(DATASET_PATH)
 ```
-
-```{python}
-
-```
