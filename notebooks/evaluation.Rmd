@@ -18,16 +18,10 @@ jupyter:
 ## imports
 
 ```{python}
-import math
 import matplotlib.pyplot as plt
-import numpy as np
 import os
-import pandas as pd
 from sklearn.metrics import roc_auc_score, roc_curve
-from sklearn.metrics import precision_recall_curve, average_precision_score
 import warnings
-
-from tabulate import tabulate
 
 warnings.filterwarnings('ignore')
 ```
@@ -35,7 +29,7 @@ warnings.filterwarnings('ignore')
 ## configs
 
 ```{python}
-PREDICTION_DATA_PATH = ('/home/shaghayegh/class/ad_click/data/test.csv')
+PREDICTION_DATA_PATH = os.path.expanduser('~/class/ad_click/data/test.csv')
 ```
 
 # load data

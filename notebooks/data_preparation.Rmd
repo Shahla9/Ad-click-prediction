@@ -19,6 +19,7 @@ jupyter:
 
 ```{python}
 import matplotlib.pyplot as plt
+import os
 import pandas as pd
 import warnings
 
@@ -39,7 +40,7 @@ SPARK_TIMEZONE = 'America/Vancouver'
 ```
 
 ```{python}
-BASE_PATH = ('/home/shaghayegh/class/ad_click/data/')
+BASE_PATH =os.path.expanduser('~/class/ad_click/data/')
 USER_DATA_PATH = BASE_PATH + 'raw_data/user_profile.csv'
 AD_CLICK_DATA_PATH = BASE_PATH + 'raw_data/raw_sample.csv'
 AD_INFO_DATA_PATH = BASE_PATH + 'raw_data/ad_feature.csv'

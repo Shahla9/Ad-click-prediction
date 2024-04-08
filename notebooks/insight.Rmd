@@ -12,10 +12,6 @@ jupyter:
     name: python3
 ---
 
-```{python active="", eval=FALSE}
-https://www.kaggle.com/datasets/pavansanagapati/ad-displayclick-data-on-taobaocom
-```
-
 # init
 
 
@@ -23,6 +19,7 @@ https://www.kaggle.com/datasets/pavansanagapati/ad-displayclick-data-on-taobaoco
 
 ```{python}
 import matplotlib.pyplot as plt
+import os
 import pandas as pd
 import warnings
 
@@ -43,7 +40,7 @@ SPARK_TIMEZONE = 'America/Vancouver'
 ```
 
 ```{python}
-BASE_PATH = ('/home/shaghayegh/class/ad_click/data/raw_data/')
+BASE_PATH = os.path.expanduser('~/class/ad_click/data/raw_data/')
 USER_DATA_PATH = BASE_PATH + 'user_profile.csv'
 AD_CLICK_DATA_PATH = BASE_PATH + 'raw_sample.csv'
 AD_INFO_DATA_PATH = BASE_PATH + 'ad_feature.csv'
