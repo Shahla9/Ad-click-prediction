@@ -5,11 +5,11 @@ https://www.kaggle.com/datasets/pavansanagapati/ad-displayclick-data-on-taobaoco
 
 ## About:
 
-This project focused on the Click-Through Rate (CTR) prediction task in the scenario of display advertising, sampled 1140000 users from the website of Taobao for 8 days of ad display / click logs (26 million records). Through comprehensive insight, data preparation, modeling, and evaluation.
+This project focuses on predicting Click-Through Rate (CTR) in display advertising, using data sampled from Taobao's website. The dataset comprises 26 million records over 8 days, representing 1,140,000 users. The project involves comprehensive data analysis, preparation, modeling, and evaluation.
 
 ## Result Summary:
 
-Achieved an Area Under the Curve (AUC) score of 0.7 through extensive data preprocessing and feature engineering. Detailed findings are organized into four Jupyter notebooks, each focusing on distinct phases of the project - Insight, Data Preparation, Machine Learning Predictive Modeling, and Evaluation.
+The project achieved an Area Under the Curve (AUC) score of 0.7 after extensive data preprocessing and feature engineering. Detailed findings are organized into four Jupyter notebooks, each dedicated to a distinct phase of the project: Insight, Data Preparation, Machine Learning Predictive Modeling, and Evaluation.
 
 Result table :
 
@@ -21,14 +21,14 @@ Result table :
 
 ### Insight:
 
-In the initial phase, the "Insight" notebook outlines the steps taken to fetch, clean, profile, and prepare ad record data sourced from taobao's website. Key steps included:
+The "Insight" notebook initiates the project by outlining steps to fetch, clean, profile, and prepare ad record data from Taobao's website. Key activities include:
 
 #### Data Fetching and Cleaning:
-Removing date outliers and cleaning the dataset to ensure accuracy.
+Removing date outliers and ensuring dataset accuracy.
 #### Data Profiling:
-Analyzing the dataset to understand its characteristics.
+Analyzing dataset characteristics.
 #### Click Rate Counts:
-Counting click rates of different categories.
+Calculating click rates for different categories.
 #### Feature Extraction:
 Creating lag features capturing temporal dependencies in click rate.
 #### Null Handling:
@@ -36,11 +36,13 @@ Addressing missing values to maintain dataset integrity.
 
 ### Data Preparation:
 
-In the "Data Preparation" notebook outlines feature engineering.
+The "Data Preparation" notebook focuses on feature engineering.
 
 ### Model:
 
-In the "Model" notebook the aim was to employ two different methods of Random Forest Classifier and XGboost Classifierfocuses on machine learning models, though since it is BigData, Random Forest Classifier could not handle it and xgboost applied on three models based on the folliwing features . The features included are:
+In the "Model" notebook, Random Forest Classifier was initially considered but due to limitations with handling Big Data, XGBoost Classifier was applied for its speed and performance. XGBoost was trained on three models based on various features including ad-related and user-related attributes.
+
+The features included are:
 
 FEATURES = [
     'pvalue_level', 'shopping_level', 'price', 'age_level',
@@ -64,27 +66,25 @@ The label for prediction is set as:
 
 LABEL = ['clk']
 
-For the model's train-test split, data from the first seven days are used for training, while the day is reserved for testing.
+he label for prediction is set as 'clk'. Data from the first seven days were used for training, while the eighth day was reserved for testing.
 
 #### Machine Learning:
 
-This phase employs XGBoost algorithms to predict click rates. The selection of these models is based on their ability to handle non-linear data and provide insights into the importance of different features affecting taxi demand.
+XGBoost algorithm was employed due to its speed and efficiency with large datasets.
 
 
 ### Evaluation:
-
-The "Evaluation" notebook delves into the performance assessment of the predictive models using Root Mean Square Error (RMSE) and Mean Absolute Percentage Error (MAPE) metrics. A table summarizing the residuals of various methods is presented, demonstrating the superior accuracy of the Random Forest model.
+The "Evaluation" notebook assesses model performance using ROC curve and AUC metrics. It demonstrates superior accuracy of Model 3, trained with all features, achieving AUC = 0.7.
 
 
 
 #### The project utilizes a range of libraries to facilitate data manipulation, analysis, and modeling:
 
-##### Geopandas: For geographic data processing.
-##### Numpy: For numerical computations.
+##### Pyspark: For processing large datasets.
 ##### Pandas: For data manipulation and analysis.
-##### Math: For mathematical functions.
-##### Tabulate: For formatting tables in the output.
+##### Matplotlib: For visualizations.
+##### Scikit-learn: For implementing machine learning models.
 
-This project serves as a comprehensive guide to predicting taxi demand in New York City, showcasing the application of machine learning techniques to real-world transportation data.
+This project serves as a comprehensive guide to predicting ad clicks, showcasing the application of machine learning techniques to real-world advertising data.
 
 
