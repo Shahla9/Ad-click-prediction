@@ -20,6 +20,7 @@ jupyter:
 ```{python}
 import matplotlib.pyplot as plt
 import os
+import pandas as pd
 from sklearn.metrics import roc_auc_score, roc_curve
 import warnings
 
@@ -36,7 +37,7 @@ PREDICTION_DATA_PATH = os.path.expanduser('~/class/ad_click/data/test.csv')
 
 ```{python}
 pred_df = pd.read_csv(PREDICTION_DATA_PATH)
-pred_df
+pred_df.head()
 ```
 
 # evaluation

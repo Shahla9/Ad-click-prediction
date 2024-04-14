@@ -62,7 +62,7 @@ PREDICTION_DATA_PATH = BASE_PATH + 'test.csv'
 
 ```{python}
 dataset_df = pd.read_parquet(DATASET_PATH)
-dataset_df
+dataset_df.head()
 ```
 
 # train/test split
@@ -74,11 +74,11 @@ def train_test_split(dataset_df, split_date):
     return train_df, test_df
 
 train_df, test_df = train_test_split(dataset_df, TRAIN_TEST_SPLIT_DATE )
-train_df
+train_df.head()
 ```
 
 ```{python}
-test_df
+test_df.head()
 ```
 
 # methods
@@ -98,7 +98,7 @@ xg1.fit(train_df[AD_FEATURES], train_df[LABEL])
 
 ```{python}
 test_df['Pred_xg1'] = xg1.predict_proba(test_df[AD_FEATURES])[:, 1]
-test_df
+test_df.head()
 ```
 
 ### training model 2
@@ -112,7 +112,7 @@ xg2.fit(train_df[USER_FEATURES], train_df[LABEL])
 
 ```{python}
 test_df['Pred_xg2'] = xg2.predict_proba(test_df[USER_FEATURES])[:, 1]
-test_df
+test_df.head()
 ```
 
 ### training model 3
@@ -126,7 +126,7 @@ xg3.fit(train_df[FEATURES], train_df[LABEL])
 
 ```{python}
 test_df['Pred_xg3'] = xg3.predict_proba(test_df[FEATURES])[:, 1]
-test_df
+test_df.head()
 ```
 
 # save prediction
