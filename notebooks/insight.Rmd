@@ -25,10 +25,13 @@ import warnings
 
 from pyspark.sql import functions as F
 from pyspark.sql import SparkSession
+from pyspark import SparkContext
 from pyspark.sql import types as T
 from pyspark.sql import Window as W
 
 warnings.filterwarnings('ignore')
+os.environ["SPARK_LOCAL_IP"] = "127.0.0.1"
+sc.setLogLevel("ERROR")
 ```
 
 ## configs
@@ -193,7 +196,7 @@ summerize_df(merged_df)
     .agg(
         F.sum('clk').alias('user_clicks'))
     .sort(F.desc('user_clicks'))
-    .show()
+    .show(3)
 )
 ```
 
@@ -232,7 +235,7 @@ summerize_df(merged_df)
     user_df
     .select('age_level')
     .distinct()
-    .show()
+    .show(3)
 )
 ```
 
@@ -246,7 +249,7 @@ summerize_df(merged_df)
     .groupby('date')
     .agg(F.sum('clk').alias('user_clicks'))
     .orderBy('date')
-    .show()
+    .show(3)
 )
 ```
 
@@ -294,7 +297,7 @@ window_df.drop('last_row').show(truncate=False)
     .groupby('brand')
     .agg(F.sum('clk').alias('user_clicks'))
     .sort(F.desc('user_clicks'))
-    .show()
+    .show(3)
 )
 ```
 
@@ -306,7 +309,7 @@ window_df.drop('last_row').show(truncate=False)
     .groupby('age_level')
     .agg(F.sum('clk').alias('user_clicks'))
     .sort(F.desc('user_clicks'))
-    .show()
+    .show(3)
 )
 ```
 
@@ -524,7 +527,7 @@ hour_clk_df = (
     .groupby('hour')
     .agg(F.round(F.avg('clk'), 4).alias('average_clk'), F.count('clk'))
 )
-hour_clk_df.sort('average_clk').show()
+hour_clk_df.sort('average_clk').show(3)
 ```
 
 ## time clk count
@@ -547,7 +550,7 @@ cate_clk_df = (
     .agg(F.round(F.avg('clk'), 4).alias('average_clk'), F.count('clk'))
     .orderBy(F.desc('count(clk)'))
 )
-cate_clk_df.show()
+cate_clk_df.show(3)
 ```
 
 ## brand clk rate
@@ -559,7 +562,7 @@ brand_clk_df = (
     .agg(F.round(F.avg('clk'), 4).alias('average_clk'), F.count('clk'))
     .sort(F.desc('count(clk)'))
 )
-brand_clk_df.show()
+brand_clk_df.show(3)
 ```
 
 ## gender clk rate
@@ -618,7 +621,7 @@ age3_cate_clk_df = (
     .agg(F.round(F.avg('clk'), 4).alias('average_clk'), F.count('clk'))
     .sort(F.desc('count(clk)'))
 )
-age3_cate_clk_df.show()
+age3_cate_clk_df.show(3)
 ```
 
 ## age level 3: ad hour clk rate 
@@ -631,7 +634,7 @@ age3_hour_clk_df = (
     .agg(F.round(F.avg('clk'), 4).alias('average_clk'))
     .orderBy(F.desc('average_clk'))
 )
-age3_hour_clk_df.show()
+age3_hour_clk_df.show(3)
 ```
 
 ## age level 3: ad shown time & clk rate 
@@ -661,13 +664,13 @@ age3_time_clk_sum_df.show()
 ## adgroup count
 
 ```{python}
-window_df.groupby('adgroup_id').count().sort(F.desc('count')).show()
+window_df.groupby('adgroup_id').count().sort(F.desc('count')).show(3)
 ```
 
 ## campaign id count
 
 ```{python}
-window_df.groupby('campaign_id').count().sort(F.desc('count')).show()
+window_df.groupby('campaign_id').count().sort(F.desc('count')).show(3)
 ```
 
 # model features
@@ -688,7 +691,7 @@ def get_user_features(df):
     return window_df
     
 users_features_df = get_user_features(window_df)
-users_features_df.select('userid', 'time', 'user_ad_count', 'user_ad_clk_count').sort('userid', 'time').show(50)
+users_features_df.select('userid', 'time', 'user_ad_count', 'user_ad_clk_count').sort('userid', 'time').show(3)
 ```
 
 ## ad counts and sum per adgroup id
@@ -706,7 +709,7 @@ def ad_window_functions(df):
     return window_df
     
 window_df = ad_window_functions(users_features_df)
-window_df.select('adgroup_id', 'time', 'adgroup_count', 'adgroup_clk_count').sort('adgroup_id', 'time').show(50)
+window_df.select('adgroup_id', 'time', 'adgroup_count', 'adgroup_clk_count').sort('adgroup_id', 'time').show(3)
 ```
 
 ## ad counts and sum per campaign id
@@ -724,7 +727,7 @@ def ad_window_functions(df):
     return window_df
     
 window_df = ad_window_functions(window_df)
-window_df.show()
+summerize_df(window_df)
 ```
 
 ## ad counts and sum per cate id
@@ -742,7 +745,7 @@ def ad_window_functions(df):
     return window_df
     
 window_df = ad_window_functions(window_df)
-window_df.show()
+summerize_df(window_df)
 ```
 
 ## male & female ad clk counts and sum per cate id
@@ -762,7 +765,7 @@ def ad_window_functions(df):
     return window_df
     
 window_df = ad_window_functions(window_df)
-window_df.show()
+summerize_df(window_df)
 ```
 
 ```{python}
@@ -778,7 +781,7 @@ def ad_window_functions(df):
     return window_df
     
 window_df = ad_window_functions(window_df)
-window_df.show()
+summerize_df(window_df)
 ```
 
 ```{python}
@@ -794,17 +797,5 @@ def ad_window_functions(df):
     return window_df
     
 window_df = ad_window_functions(window_df)
-window_df.show()
-```
-
-```{python}
-
-```
-
-```{python}
-
-```
-
-```{python}
-
+summerize_df(window_df)
 ```
