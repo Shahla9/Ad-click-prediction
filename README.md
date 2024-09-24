@@ -66,7 +66,7 @@ The label for prediction is set as:
 
 LABEL = ['clk']
 
-he label for prediction is set as 'clk'. Data from the first seven days were used for training, while the eighth day was reserved for testing.
+The label for prediction is set as 'clk'. Data from the first seven days were used for training, while the eighth day was reserved for testing.
 
 #### Machine Learning:
 
